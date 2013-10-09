@@ -5,7 +5,8 @@ Game Price Scraper and Database Tool
 
 
 * Dependencies
-- python-pycurl
-- python-mysqldb
+- curl libcurl3-dev
+- python-dev
+- libmysqlclient-dev
 
 
