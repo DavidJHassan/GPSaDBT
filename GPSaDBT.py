@@ -5,12 +5,12 @@ import StringIO
 import sys,getopt
 import MySQLdb
 import csv
-from subprocess import call
 import pdb
 import sys
+import readline
+import glob
 
-
-
+#---Constants---
 consoleName = ['nes','super-nintendo','nintendo-64','gamecube','wii','wii-u','gameboy','gameboy-color','gameboy-advance','nintendo-ds','nintendo-3ds','virtual-boy','playstation',
 'playstation-2','playstation-3','psp','playstation-vita','sega-master-system','sega-genesis','sega-cd','sega-32x','sega-saturn','sega-dreamcast','sega-game-gear','xbox','xbox-360'
 ,'atari-2600','atari-5200','atari-7800','atari-400','atari-lynx','jaguar','3do','cd-i','colecovision','commodore-64','intellivision','n-gage','neo-geo','neo-geo-pocket-color','odyssey-2'
@@ -18,7 +18,140 @@ consoleName = ['nes','super-nintendo','nintendo-64','gamecube','wii','wii-u','ga
 
 tableName = ['NES','SNES','N64','GAMECUBE','WII','WIIU','GAMEBOY','GAMEBOYC', 'GAMEBOYA','NDS','3DS','VIRTUALBOY','PS1','PS2','PS3','PSP','PSV','SMS','GENESIS','SEGACD','32X','SATURN','DREAMCAST','GAMEGEAR','XBOX','XBOX360',
 'ATARI2600','ATARI5200','ATARI7200','ATARI400','ATARILYNX','ATARIJAGUAR','3DO','CDI','COLECO','C64','INTELLI','NGAGE','NEOGEO','NEOGEOP','ODYSSEY2','TURBOGRAFX16','VECTREX','VIC20']	
+#---End Constants
 
+#---Anon Functions---
+def complete(text, state):
+	return (glob.glob(text+'*')+[None])[state]
+def commandLoop():
+	readline.set_completer_delims(' \t\n;')
+	readline.parse_and_bind("tab: complete")
+	readline.set_completer(complete)
+	
+	input_line = ""
+	while(True):
+		input_line = raw_input(">")
+		if input_line == "exit":
+			break
+		
+		strings = input_line.split()
+		if len(strings) < 3:
+			print "Input too short"
+			continue
+			
+		command = strings[0]
+		arg1 = strings[1]
+		arg2 = strings[2]
+		
+		
+		if command == "search":
+			if arg1 == "all":
+				searchAll(arg2)
+			else:
+				try:
+					cursor.execute('SELECT * FROM '+arg1+' WHERE Title LIKE "%'+arg2+'%";')
+					rows = cursor.fetchall()
+					for i in range(0,len(rows)):
+						print rows[i]
+				except:
+					continue
+		
+		if command == "sum":
+			
+			gameType = ['Loose','New']
+			index = 0 #Defaults to loose
+			if arg2 == "-n":
+				index = 1
+			
+			if arg1 == "all":
+				sumAll(gameType[index])
+			else:
+				try:
+					cursor.execute('SELECT SUM('+gameType[index]+') FROM '+arg1+';')
+					rows = cursor.fetchall()
+					for i in range(0,len(rows)):
+						print rows[i]
+				except:
+					continue
+					
+		if command == "avg":
+			gameType = ['Loose','New']
+			index = 0 #Defaults to loose
+			if arg2 == "-n":
+				index = 1
+			
+			if arg1 == "all":
+				avgAll(gameType[index])
+			else:
+				try:
+					cursor.execute('SELECT AVG('+gameType[index]+') FROM '+arg1+';')
+					rows = cursor.fetchall()
+					for i in range(0,len(rows)):
+						print rows[i]
+				except:
+					continue	
+				
+		if command == "add":
+			if arg2 == "-c":
+				fillUsingCSV(arg1)
+			elif arg2 == "-t":
+				fullUsingTXT(arg1)
+			else:
+				print "Invalid option: "+arg2	
+				
+		if command != "add" or command != "avg" or command != "search" or command != "sum":
+			innerHelpInfo()
+			
+def helpInfo():
+		print'''
+				
+		Usage: GPSaDBT [OPTIONS]
+		
+		-h, --help	Displays this help text and exits.
+		-o 		Database host IP. If no IP is giving
+				it is assumed localhost.
+		-u		Database username. If no username is given
+				Database connection can not be established.
+				Unless username is logged in config file.
+		-p		Database password. If no password is given.
+				Database connection can not be established.
+				Unless password is logged in config file.
+		-d		Database name. If no name is given it is assumed
+				the database name is GAMES. Unless name is 
+				logged in config file.
+		'''
+		
+#---End Anon Functions---
+
+#---All Table Functions---
+def searchAll(arg2):
+	for arg1 in tableName:
+		try:	
+			cursor.execute('SELECT * FROM '+arg1+' WHERE Title LIKE "%'+arg2+'%";')
+			rows = cursor.fetchall()
+			for i in range(0,len(rows)):
+				print arg1, rows[i]
+		except:
+			continue
+def sumAll(gameType):
+	for arg1 in tableName:
+		try:	
+			cursor.execute('SELECT SUM('+gameType+') FROM '+arg1+';')
+			rows = cursor.fetchall()
+			for i in range(0,len(rows)):
+				print arg1, rows[i]
+		except:
+			continue
+def avgAll(gameType):
+	for arg1 in tableName:
+		try:	
+			cursor.execute('SELECT AVG('+gameType+') FROM '+arg1+';')
+			rows = cursor.fetchall()
+			for i in range(0,len(rows)):
+				print arg1, rows[i]
+		except:
+			continue
+#---END All Table Functions---
 
 #---Initialization Functions---
 def createTables():
@@ -29,7 +162,6 @@ def createTables():
 		cursor.execute(tableCREATE)
 
 	db.commit()
-	
 def fillTables():
 	
 	for x in range(0,len(consoleName)):
@@ -138,84 +270,72 @@ def fillTables():
 
 
 #---Adding Functions---
-def fillUsingCSV(name):
+def fillUsingCSV(filepath):
 
 	
 	ifile = None
 	
 	try:
-		ifile  = open(name+".csv", "rb")
+		ifile  = open(filepath, "rb")
 	except:
-		print name+".csv file not found"		
+		print filepath+" file not found"		
 	
-	try:
-		cursor.execute("SELECT * FROM my"+name+";")
-	except:
-		cursor.execute("CREATE TABLE my"+name+"(Title varchar(100), Genre varchar(20), Loose double(7,2), New double(7,2));")  
+	partitions = filepath.split('/')
+	name = partitions[-1]
+	name = name[:-4]
+	if name in tableName:
 	
-	try:
-		reader = csv.reader(ifile)
-	except:
-		print name+".csv file could not be read"
-	 
-	myGames = []
-	 
-	rownum = 0
-	for row in reader:
-		# Save header row.
-		colnum = 0
-		for col in row:
-			myGames.append(col)
-			colnum += 1          
-		rownum += 1
-	 
-	ifile.close()
+		try:
+			cursor.execute("SELECT * FROM my"+name+";")
+		except:
+			cursor.execute("CREATE TABLE my"+name+"(Title varchar(100), Genre varchar(20), Loose double(7,2), New double(7,2));")  
+		
+		try:
+			reader = csv.reader(ifile)
+		except:
+			print name+".csv file could not be read"
+			sys.exit(1)
+			
+		myGames = []
+		 
+		rownum = 0
+		for row in reader:
+			# Save header row.
+			colnum = 0
+			for col in row:
+				myGames.append(col)
+				colnum += 1          
+			rownum += 1
+		 
+		ifile.close()
 
-	sqlDeleteRows = "DELETE FROM my"+name
-	sqlTruncateRows = "TRUNCATE my"+name
-	cursor.execute(sqlDeleteRows)
-	cursor.execute(sqlTruncateRows)
-	
-	for i in range(0,len(myGames)):
-		sqlInsert = "INSERT INTO my"+name+"(title) VALUES ('"+MySQLdb.escape_string(myGames[i])+"')"
-		cursor.execute(sqlInsert)
+		sqlDeleteRows = "DELETE FROM my"+name
+		sqlTruncateRows = "TRUNCATE my"+name
+		cursor.execute(sqlDeleteRows)
+		cursor.execute(sqlTruncateRows)
+		
+		for i in range(0,len(myGames)):
+			sqlInsert = "INSERT INTO my"+name+"(title) VALUES ('"+MySQLdb.escape_string(myGames[i])+"')"
+			cursor.execute(sqlInsert)
 
-	updateGenreCOL = "UPDATE my"+name+" SET genre = (SELECT genre FROM GAMECUBE WHERE my"+name+".title = "+name+".title);"
-	updateLooseCOL = "UPDATE my"+name+" SET loose = (SELECT loose FROM GAMECUBE WHERE my"+name+".title = "+name+".title);"
-	updateNewCOL = "UPDATE my"+name+" SET new = (SELECT new FROM GAMECUBE WHERE my"+name+".title = "+name+".title);"
+		updateGenreCOL = "UPDATE my"+name+" SET genre = (SELECT genre FROM GAMECUBE WHERE my"+name+".title = "+name+".title);"
+		updateLooseCOL = "UPDATE my"+name+" SET loose = (SELECT loose FROM GAMECUBE WHERE my"+name+".title = "+name+".title);"
+		updateNewCOL = "UPDATE my"+name+" SET new = (SELECT new FROM GAMECUBE WHERE my"+name+".title = "+name+".title);"
 
-	cursor.execute(updateGenreCOL)
-	cursor.execute(updateLooseCOL)
-	cursor.execute(updateNewCOL)
+		cursor.execute(updateGenreCOL)
+		cursor.execute(updateLooseCOL)
+		cursor.execute(updateNewCOL)
 
-
-	db.commit()
+		db.commit()
+		print "New table myGAMECUBE added succesfully"
+	else:
+		print "This is not a recognized table name"
 # TODO: Add function for reading texts/ other formats other than CSV
 #---End Adding Functions---
 
 
 if __name__ == "__main__":
-	
-	def helpInfo():
-		print'''
-				
-		Usage: PriceCharterTableScraper [OPTIONS]
 		
-		-h, --help	Displays this help text and exits.
-		-o 		Database host IP. If no IP is giving
-				it is assumed localhost.
-		-u		Database username. If no username is given
-				Database connection can not be established.
-				Unless username is logged in config file.
-		-p		Database password. If no password is given.
-				Database connection can not be established.
-				Unless password is logged in config file.
-		-d		Database name. If no name is given it is assumed
-				the database name is GAMES. Unless name is logged
-				in config file.
-		'''
-		pass
-
 	try:
 		opts, args = getopt.getopt(sys.argv[1:],"u:p:d:o:h:",["help"])
 	except getopt.GetoptError, err:
@@ -249,21 +369,29 @@ if __name__ == "__main__":
 
 	if host == "" and database != "":
 		try:
-			db = MySQLdb.connect("localhost",username,password,database)  
+			db = MySQLdb.connect("localhost",username,password,database) 
+			print "Connected to MYSQL database "+database+" at localhost"
 		except:
 			print "Could not connect to MYSQL database "+database+" at localhost"
 			sys.exit(1)
 	elif database == "" and host != "":
 		try:
-			db = MySQLdb.connect(host,username,password,"GAMES")  
+			db = MySQLdb.connect(host,username,password,"GAMES")
+			print "Connected to MYSQL database GAMES at host: "+host  
 		except:
 			print "Could not connect to MYSQL database GAMES at host: "+host
 			sys.exit(1)
 	else:
 		try:
 			db = MySQLdb.connect("localhost",username,password,"GAMES")  
+			print "Connected to MYSQL database GAMES at localhost"
 		except:
 			print "Could not connect to MYSQL database GAMES at localhost"
 			sys.exit(1)
-	#print "Connected to MYSQL database GAMES at localhost"
-	#cursor = db.cursor()
+	
+	cursor = db.cursor()
+	
+	commandLoop()
+	
+				
+	db.close()
