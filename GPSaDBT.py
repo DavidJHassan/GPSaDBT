@@ -37,7 +37,12 @@ def commandLoop():
 		strings = input_line.split()
 		if len(strings) < 3:
 			print "Input too short"
+			innerHelpInfo()
 			continue
+		
+		
+		if command != "add" and command != "avg" and command != "search" and command != "sum":
+			innerHelpInfo()	
 			
 		command = strings[0]
 		arg1 = strings[1]
@@ -99,10 +104,9 @@ def commandLoop():
 			else:
 				print "Invalid option: "+arg2	
 				
-		if command != "add" or command != "avg" or command != "search" or command != "sum":
-			innerHelpInfo()
-			
+				
 def helpInfo():
+	
 		print'''
 				
 		Usage: GPSaDBT [OPTIONS]
@@ -120,7 +124,21 @@ def helpInfo():
 				the database name is GAMES. Unless name is 
 				logged in config file.
 		'''
+def innerHelpInfo():
+	print'''
+				
+		Commands: 
 		
+		add [FileName.ext] [option] adds your game list to a table and updates it to have prices 
+			Ex: (add GAMECUBE.csv -c) adds csv list 
+		
+		search [Table] [String] searches a table for a title like the string
+			Ex: (search GAMECUBE Zelda) returns all Zelda's in table GAMECUBE
+			Ex: (search all Zelda) returns all Zelda's in all tables
+			
+		
+		
+		'''
 #---End Anon Functions---
 
 #---All Table Functions---
@@ -315,19 +333,19 @@ def fillUsingCSV(filepath):
 		cursor.execute(sqlTruncateRows)
 		
 		for i in range(0,len(myGames)):
-			sqlInsert = "INSERT INTO my"+name+"(title) VALUES ('"+MySQLdb.escape_string(myGames[i])+"')"
+			sqlInsert = "INSERT INTO my"+name+"(Title) VALUES ('"+MySQLdb.escape_string(myGames[i])+"')"
 			cursor.execute(sqlInsert)
 
-		updateGenreCOL = "UPDATE my"+name+" SET genre = (SELECT genre FROM GAMECUBE WHERE my"+name+".title = "+name+".title);"
-		updateLooseCOL = "UPDATE my"+name+" SET loose = (SELECT loose FROM GAMECUBE WHERE my"+name+".title = "+name+".title);"
-		updateNewCOL = "UPDATE my"+name+" SET new = (SELECT new FROM GAMECUBE WHERE my"+name+".title = "+name+".title);"
+		updateGenreCOL = "UPDATE my"+name+" SET Genre = (SELECT Genre FROM "+name+" WHERE my"+name+".Title = "+name+".Title);"
+		updateLooseCOL = "UPDATE my"+name+" SET Loose = (SELECT Loose FROM "+name+" WHERE my"+name+".Title = "+name+".Title);"
+		updateNewCOL = "UPDATE my"+name+" SET New = (SELECT New FROM "+name+" WHERE my"+name+".Title = "+name+".Title);"
 
 		cursor.execute(updateGenreCOL)
 		cursor.execute(updateLooseCOL)
 		cursor.execute(updateNewCOL)
 
 		db.commit()
-		print "New table myGAMECUBE added succesfully"
+		print "New table my"+name+" added succesfully"
 	else:
 		print "This is not a recognized table name"
 # TODO: Add function for reading texts/ other formats other than CSV
