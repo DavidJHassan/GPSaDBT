@@ -2,3 +2,10 @@ GPSaDBT
 =======
 
 Game Price Scraper and Database Tool
+
+
+* Dependencies
+- python-pycurl
+- python-mysqldb
+
+
