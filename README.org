@@ -5,6 +5,9 @@ Game Price Scraper and Database Tool
 
 
 * Dependencies
+
+  Ubuntu Packages
+----------------
 - curl libcurl3-dev
 - python-dev
 - libmysqlclient-dev
