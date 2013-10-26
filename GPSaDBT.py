@@ -9,20 +9,18 @@ import pdb
 import sys
 import readline
 import glob
+#---Local imports---
+from constants import *
+from formatting import *
+from helpers import *
+from sums import *
+#---END Local imports---
 
-#---Constants---
-consoleName = ['nes','super-nintendo','nintendo-64','gamecube','wii','wii-u','gameboy','gameboy-color','gameboy-advance','nintendo-ds','nintendo-3ds','virtual-boy','playstation',
-'playstation-2','playstation-3','psp','playstation-vita','sega-master-system','sega-genesis','sega-cd','sega-32x','sega-saturn','sega-dreamcast','sega-game-gear','xbox','xbox-360'
-,'atari-2600','atari-5200','atari-7800','atari-400','atari-lynx','jaguar','3do','cd-i','colecovision','commodore-64','intellivision','n-gage','neo-geo','neo-geo-pocket-color','odyssey-2'
-'turbografx-16','vectrex','vic-20']
-
-tableName = ['NES','SNES','N64','GAMECUBE','WII','WIIU','GAMEBOY','GAMEBOYC', 'GAMEBOYA','NDS','3DS','VIRTUALBOY','PS1','PS2','PS3','PSP','PSV','SMS','GENESIS','SEGACD','32X','SATURN','DREAMCAST','GAMEGEAR','XBOX','XBOX360',
-'ATARI2600','ATARI5200','ATARI7200','ATARI400','ATARILYNX','ATARIJAGUAR','3DO','CDI','COLECO','C64','INTELLI','NGAGE','NEOGEO','NEOGEOP','ODYSSEY2','TURBOGRAFX16','VECTREX','VIC20']	
-#---End Constants
 
 #---Anon Functions---
 def complete(text, state):
 	return (glob.glob(text+'*')+[None])[state]
+
 def commandLoop():
 	readline.set_completer_delims(' \t\n;')
 	readline.parse_and_bind("tab: complete")
@@ -35,19 +33,21 @@ def commandLoop():
 			break
 		
 		strings = input_line.split()
-		if len(strings) < 3:
-			print "Input too short"
-			innerHelpInfo()
-			continue
-		
+		if len(strings) == 3:
+			command = strings[0]
+			arg1 = strings[1]
+			arg2 = strings[2]
+		elif len(strings) == 2:
+			command = strings[0]
+			arg1 = strings[1]
+			arg2 = ""
+		elif len(strings) == 1:
+			command = strings[0]
+		else:
+			innerHelpInfo()	
 		
 		if command != "add" and command != "avg" and command != "search" and command != "sum":
 			innerHelpInfo()	
-			
-		command = strings[0]
-		arg1 = strings[1]
-		arg2 = strings[2]
-		
 		
 		if command == "search":
 			if arg1 == "all":
@@ -62,23 +62,27 @@ def commandLoop():
 					continue
 		
 		if command == "sum":
-			
-			gameType = ['Loose','New']
-			index = 0 #Defaults to loose
-			if arg2 == "-n":
+			gameType = ['Loose','New','Both']
+			index = 0
+			if arg2 == "-l":
+				index = 0
+			elif arg2 == "-n":
 				index = 1
-			
+			elif arg2 == "":
+				index = 2
+				
 			if arg1 == "all":
-				sumAll(gameType[index])
+				sumAll(cursor,gameType[index])
+			elif arg1 == "my":
+				sumMY(cursor,gameType[index])
+			elif arg1 == "orig":
+				sumORIG(cursor,gameType[index])
 			else:
 				try:
-					cursor.execute('SELECT SUM('+gameType[index]+') FROM '+arg1+';')
-					rows = cursor.fetchall()
-					for i in range(0,len(rows)):
-						print rows[i]
+					sums(cursor,gameType[index],arg1)
 				except:
 					continue
-					
+			
 		if command == "avg":
 			gameType = ['Loose','New']
 			index = 0 #Defaults to loose
@@ -103,42 +107,7 @@ def commandLoop():
 				fullUsingTXT(arg1)
 			else:
 				print "Invalid option: "+arg2	
-				
-				
-def helpInfo():
-	
-		print'''
-				
-		Usage: GPSaDBT [OPTIONS]
 		
-		-h, --help	Displays this help text and exits.
-		-o 		Database host IP. If no IP is giving
-				it is assumed localhost.
-		-u		Database username. If no username is given
-				Database connection can not be established.
-				Unless username is logged in config file.
-		-p		Database password. If no password is given.
-				Database connection can not be established.
-				Unless password is logged in config file.
-		-d		Database name. If no name is given it is assumed
-				the database name is GAMES. Unless name is 
-				logged in config file.
-		'''
-def innerHelpInfo():
-	print'''
-				
-		Commands: 
-		
-		add [FileName.ext] [option] adds your game list to a table and updates it to have prices 
-			Ex: (add GAMECUBE.csv -c) adds csv list 
-		
-		search [Table] [String] searches a table for a title like the string
-			Ex: (search GAMECUBE Zelda) returns all Zelda's in table GAMECUBE
-			Ex: (search all Zelda) returns all Zelda's in all tables
-			
-		
-		
-		'''
 #---End Anon Functions---
 
 #---All Table Functions---
@@ -151,15 +120,7 @@ def searchAll(arg2):
 				print arg1, rows[i]
 		except:
 			continue
-def sumAll(gameType):
-	for arg1 in tableName:
-		try:	
-			cursor.execute('SELECT SUM('+gameType+') FROM '+arg1+';')
-			rows = cursor.fetchall()
-			for i in range(0,len(rows)):
-				print arg1, rows[i]
-		except:
-			continue
+
 def avgAll(gameType):
 	for arg1 in tableName:
 		try:	
@@ -169,6 +130,7 @@ def avgAll(gameType):
 				print arg1, rows[i]
 		except:
 			continue
+			
 #---END All Table Functions---
 
 #---Initialization Functions---
